@@ -1,20 +1,22 @@
 {
-  description = "Example Darwin system flake";
+  description = "3c0m3x Darwin system flake";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nix-darwin.url = "github:LnL7/nix-darwin";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
+    home-manager.url = "github:nix-community/home-manager";
+    home-manager.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = inputs@{ self, nix-darwin, nixpkgs }:
+  outputs = inputs@{ self, nix-darwin, nixpkgs, home-manager }:
   let
     configuration = { pkgs, ... }: {
       # List packages installed in system profile. To search by name, run:
       # $ nix-env -qaP | grep wget
       environment.systemPackages = with pkgs;
         [ vim
-	  vscode
+	        vscode
         ];
 
       # Auto upgrade nix package and the daemon service.
@@ -43,26 +45,41 @@
 
       security.pam.enableSudoTouchIdAuth = true;
 
+      users.users.ecomex = {
+        name = "ecomex";
+        home = "/Users/ecomex";
+      };
+
       # Homebrew needs to be installed on its own!
       homebrew.enable = true;
       homebrew.casks = [
-	      "wireshark"
-              "google-chrome"
+        "google-chrome"
       ];
       homebrew.brews = [
-	      "imagemagick"
+	      
       ];
     };
 
   in
   {
     # Build darwin flake using:
-    # $ darwin-rebuild build --flake .#Sebastians-Macbook
-    darwinConfigurations."Sebastians-Macbook" = nix-darwin.lib.darwinSystem {
-      modules = [ configuration ];
+    # $ darwin-rebuild build --flake .#MacBook
+    darwinConfigurations."MacBook" = nix-darwin.lib.darwinSystem {
+      modules = [ 
+	configuration
+        home-manager.darwinModules.home-manager
+        {
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
+          home-manager.users.ecomex = import ./home.nix;
+
+          # Optionally, use home-manager.extraSpecialArgs to pass
+          # arguments to home.nix
+        } 
+      ];
     };
 
     # Expose the package set, including overlays, for convenience.
-    darwinPackages = self.darwinConfigurations."Sebastians-Macbook".pkgs;
+    darwinPackages = self.darwinConfigurations."MacBook".pkgs;
   };
 }
